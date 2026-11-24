@@ -7,7 +7,7 @@
 
 window.HARCOURT_CONFIG = {
   SUPABASE_URL: "https://zidhwrlcnzclaqkekyrl.supabase.co",
-  SUPABASE_ANON_KEY: "process.env.SUPABASE_KEY",
+  SUPABASE_ANON_KEY: "sb_publishable_6ikEp27M9AhW_vOCfdtaPA_zOv3tMKb",
 
   // The people who appear in the "Who" list.
   PEOPLE: ["Ben", "Partner"],
