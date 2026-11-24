@@ -2,6 +2,7 @@
 
 A simple shared board for keeping on top of house jobs. It runs as an app on both our phones, and changes show up live for both of us.
 
+- **A board for every room:** tap the room name at the top to switch between Kitchen, Bathroom, Shed and so on. Each room shows how many jobs are left. **All rooms** shows everything at once.
 - **Three columns:** To do, Doing, Done. Swipe sideways on a phone; on a laptop you see all three.
 - **Each job can have:** who's doing it, a type (Cleaning, Garden, Repairs, Bills, Shopping, Admin), a due date and notes.
 - **Repeating jobs:** set "Repeats" to weekly, monthly and so on. When you finish one, the next one appears in To do with a new due date. Good for bins, bills and filter changes.
@@ -52,7 +53,9 @@ Open it from the home screen and sign in once. It remembers you.
 
 ## Changing things
 
-Everything you'd want to tweak is in [`config.js`](config.js): names, columns and job types (with colours).
+Everything you'd want to tweak is in [`config.js`](config.js): names, rooms, columns and job types (with colours).
+
+If you rename a room, jobs saved under the old name won't show on the renamed board (they still appear under **All rooms**, where you can edit them).
 
 If you add or rename a column, keep the `id` of existing columns the same or their cards will disappear from view.
 

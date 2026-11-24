@@ -44,6 +44,11 @@
 
   <!-- Board -->
   <main id="app" hidden>
+    <button id="roomBtn" class="room-btn" aria-haspopup="dialog">
+      <span class="room-label">Board</span>
+      <span id="roomName">All rooms</span>
+      <span aria-hidden="true">▾</span>
+    </button>
     <div class="filters" role="group" aria-label="Filter by person" id="filters"></div>
     <nav class="tabs" role="tablist" id="tabs"></nav>
     <div class="board" id="board"></div>
@@ -83,9 +88,14 @@
           </select>
         </label>
       </div>
-      <label>Column
-        <select id="fStatus"></select>
-      </label>
+      <div class="row">
+        <label>Room
+          <select id="fRoom"></select>
+        </label>
+        <label>Column
+          <select id="fStatus"></select>
+        </label>
+      </div>
       <div class="actions">
         <button type="button" id="deleteBtn" class="danger">Delete</button>
         <span class="spacer"></span>
@@ -93,6 +103,15 @@
         <button type="submit" class="primary">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Room picker -->
+  <dialog id="rooms">
+    <div class="rooms">
+      <h2>Choose a board</h2>
+      <div id="roomGrid" class="room-grid"></div>
+      <button id="closeRoomsBtn">Close</button>
+    </div>
   </dialog>
 
   <!-- Menu -->

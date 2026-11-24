@@ -9,11 +9,15 @@ create table if not exists public.cards (
   status      text not null default 'todo',
   assignee    text default '',
   category    text default '',
+  room        text default '',
   due         date,
   repeat      text default '',
   done_at     timestamptz,
   created_at  timestamptz not null default now()
 );
+
+-- (For databases made before rooms were added.)
+alter table public.cards add column if not exists room text default '';
 
 -- Only people listed here can see or change cards.
 create table if not exists public.members (

@@ -12,6 +12,13 @@ window.HARCOURT_CONFIG = {
   // The people who appear in the "Who" list.
   PEOPLE: ["Ben", "Partner"],
 
+  // Each room is its own board. Add, remove or reorder as you like.
+  ROOMS: [
+    "Kitchen", "Dining Room", "Hall", "Living Room", "Porch", "Landing",
+    "Bathroom", "Study", "Studio", "Bedroom", "Front Garden", "Back Garden",
+    "Under the stairs", "Shed", "Side of the house"
+  ],
+
   COLUMNS: [
     { id: "todo",  name: "To do" },
     { id: "doing", name: "Doing" },

@@ -34,7 +34,7 @@
     const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true }
     });
-    const cols = "id,title,notes,status,assignee,category,due,repeat,done_at,created_at";
+    const cols = "id,title,notes,status,assignee,category,room,due,repeat,done_at,created_at";
     return {
       async signedIn() {
         const { data } = await sb.auth.getSession();
@@ -72,6 +72,8 @@
 
   let cards = [];
   let filter = localGet("harcourt-filter") || "all";
+  let room = localGet("harcourt-room") || "all";
+  if (room !== "all" && !CFG.ROOMS.includes(room)) room = "all";
   let activeCol = CFG.COLUMNS[0].id;
   let editing = null;
 
@@ -123,7 +125,12 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
+  function inRoom(card) {
+    return room === "all" || card.room === room;
+  }
+
   function visible(card) {
+    if (!inRoom(card)) return false;
     if (filter === "all") return true;
     return card.assignee === filter || card.assignee === "Both";
   }
@@ -151,7 +158,33 @@
     }
   }
 
+  function renderRooms() {
+    $("roomName").textContent = room === "all" ? "All rooms" : room;
+    const open = (r) => cards.filter((c) => c.status !== "done" && (r === "all" || c.room === r)).length;
+    const grid = $("roomGrid");
+    grid.replaceChildren();
+    for (const r of ["all", ...CFG.ROOMS]) {
+      const b = document.createElement("button");
+      if (r === "all") b.className = "all";
+      b.setAttribute("aria-current", String(r === room));
+      const name = document.createElement("span");
+      name.textContent = r === "all" ? "All rooms" : r;
+      const n = document.createElement("span");
+      n.className = "n";
+      const count = open(r);
+      n.textContent = count ? count + " to do" : "";
+      b.append(name, n);
+      b.onclick = () => {
+        room = r; localSet("harcourt-room", r);
+        activeCol = CFG.COLUMNS[0].id;
+        $("rooms").close(); render();
+      };
+      grid.append(b);
+    }
+  }
+
   function render() {
+    renderRooms();
     renderFilters();
     const tabs = $("tabs");
     const board = $("board");
@@ -182,7 +215,8 @@
       if (!list.length) {
         const p = document.createElement("p");
         p.className = "empty";
-        p.textContent = col.id === "done" ? "Nothing finished yet." : "Nothing here. Nice.";
+        p.textContent = col.id === "done" ? "Nothing finished yet."
+          : room === "all" ? "Nothing here. Nice." : `Nothing to do in the ${room.toLowerCase()}. Nice.`;
         section.append(p);
       }
       list.forEach((c) => section.append(renderCard(c, i)));
@@ -219,6 +253,7 @@
       who.append(dot, " ", c.assignee);
       meta.append(who);
     }
+    if (room === "all" && c.room) meta.append(Object.assign(document.createElement("span"), { textContent: c.room }));
     if (cat) meta.append(Object.assign(document.createElement("span"), { textContent: cat.name }));
     if (c.due && c.status !== "done") {
       const due = document.createElement("span");
@@ -295,6 +330,7 @@
     $("fNotes").value = card?.notes || "";
     $("fAssignee").value = card?.assignee || "";
     $("fCategory").value = card?.category || "";
+    $("fRoom").value = card ? (card.room || "") : (room === "all" ? "" : room);
     $("fDue").value = card?.due || "";
     $("fRepeat").value = card?.repeat || "";
     $("fStatus").value = card?.status || activeCol;
@@ -312,6 +348,7 @@
       notes: $("fNotes").value.trim(),
       assignee: $("fAssignee").value,
       category: $("fCategory").value,
+      room: $("fRoom").value,
       due: $("fDue").value || null,
       repeat: $("fRepeat").value
     };
@@ -338,6 +375,7 @@
   function wire() {
     fillSelect($("fAssignee"), [["", "Anyone"], ...CFG.PEOPLE.map((p) => [p, p]), ["Both", "Both of us"]]);
     fillSelect($("fCategory"), [["", "None"], ...CFG.CATEGORIES.map((c) => [c.id, c.name])]);
+    fillSelect($("fRoom"), [["", "Whole house"], ...CFG.ROOMS.map((r) => [r, r])]);
     fillSelect($("fStatus"), CFG.COLUMNS.map((c) => [c.id, c.name]));
 
     $("addBtn").onclick = () => openEditor(null);
@@ -347,6 +385,8 @@
       if (editing && confirm(`Delete "${editing.title}"?`)) { $("editor").close(); removeCards([editing.id]); }
     };
 
+    $("roomBtn").onclick = () => { renderRooms(); $("rooms").showModal(); };
+    $("closeRoomsBtn").onclick = () => $("rooms").close();
     $("menuBtn").onclick = () => $("menu").showModal();
     $("closeMenuBtn").onclick = () => $("menu").close();
     $("clearDoneBtn").onclick = () => {
