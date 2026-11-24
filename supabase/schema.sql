@@ -24,6 +24,12 @@ create table if not exists public.members (
   email text primary key
 );
 
+-- Newer Supabase projects don't expose new tables automatically,
+-- so give signed-in users access (the policy below still limits it to members).
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.cards to authenticated;
+grant select on public.members to authenticated;
+
 alter table public.cards   enable row level security;
 alter table public.members enable row level security;
 
