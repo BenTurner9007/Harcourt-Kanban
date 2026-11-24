@@ -1,6 +1,6 @@
 // Service worker: lets the app open quickly and work as a home-screen app.
 // Network first, so you always get the latest version when online.
-const CACHE = "harcourt-v3";
+const CACHE = "harcourt-v4";
 const SHELL = [
   "./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
@@ -23,7 +23,8 @@ self.addEventListener("fetch", (e) => {
   // Only handle our own files; card data always goes straight to Supabase.
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request)
+    // "no-cache" makes the browser check GitHub for a newer copy every time.
+    fetch(e.request, { cache: "no-cache" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));
