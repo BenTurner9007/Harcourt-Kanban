@@ -6,8 +6,8 @@
 // Leave them empty to run in demo mode (cards saved on this device only).
 
 window.HARCOURT_CONFIG = {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: "",
+  SUPABASE_URL: "https://zidhwrlcnzclaqkekyrl.supabase.co",
+  SUPABASE_ANON_KEY: "process.env.SUPABASE_KEY",
 
   // The people who appear in the "Who" list.
   PEOPLE: ["Ben", "Partner"],
