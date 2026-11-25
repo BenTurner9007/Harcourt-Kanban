@@ -135,7 +135,9 @@
     if (diff === 0) return "Today";
     if (diff === 1) return "Tomorrow";
     if (diff === -1) return "Yesterday";
-    return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    const opts = { weekday: "short", day: "numeric", month: "short" };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+    return d.toLocaleDateString("en-GB", opts);
   }
 
   function nextDue(iso, repeat) {
@@ -333,6 +335,28 @@
     };
 
     el.append(title, move, meta);
+    const steps = Array.isArray(c.checklist) ? c.checklist : [];
+    if (steps.length) {
+      const doneSteps = steps.filter((s) => s.done).length;
+      const prog = document.createElement("div");
+      prog.className = "progress";
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      const fill = document.createElement("span");
+      fill.style.width = Math.round((doneSteps / steps.length) * 100) + "%";
+      bar.append(fill);
+      const line = document.createElement("div");
+      line.className = "next";
+      const nextStep = steps.find((s) => !s.done);
+      line.append(`☑ ${doneSteps}/${steps.length}`);
+      if (nextStep && c.status !== "done") {
+        const b = document.createElement("b");
+        b.textContent = nextStep.text;
+        line.append(" · Next: ", b);
+      }
+      prog.append(bar, line);
+      el.append(prog);
+    }
     if (c.notes) {
       const n = document.createElement("div");
       n.className = "notes";
@@ -368,6 +392,7 @@
         // Make the next one, and stop this one repeating again.
         await persist({
           ...card, id: uuid(), status: CFG.COLUMNS[0].id, done_at: null,
+          checklist: (card.checklist || []).map((s) => ({ ...s, done: false })),
           due: nextDue(card.due, card.repeat), created_at: new Date().toISOString()
         });
         updated.repeat = "";
@@ -387,6 +412,9 @@
     $("editTitle").textContent = card ? "Edit job" : "New job";
     $("fTitle").value = card?.title || "";
     $("fNotes").value = card?.notes || "";
+    draftSteps = (card?.checklist || []).map((s) => ({ ...s }));
+    $("newStep").value = "";
+    renderSteps();
     $("fAssignee").value = card?.assignee || "";
     $("fCategory").value = card?.category || "";
     $("fRoom").value = card ? (card.room || "") : (CFG.ROOMS.includes(room) ? room : "");
@@ -400,6 +428,59 @@
     if (!card) $("fTitle").focus();
   }
 
+  // ---------- Checklist (inside the editor) ----------
+
+  let draftSteps = [];
+
+  function renderSteps() {
+    const ul = $("checklist");
+    ul.replaceChildren();
+    draftSteps.forEach((step, i) => {
+      const li = document.createElement("li");
+      if (step.done) li.className = "ticked";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!step.done;
+      cb.setAttribute("aria-label", "Done");
+      cb.onchange = () => { step.done = cb.checked; li.className = cb.checked ? "ticked" : ""; updateStepCount(); };
+      const txt = document.createElement("input");
+      txt.type = "text";
+      txt.value = step.text;
+      txt.maxLength = 120;
+      txt.oninput = () => { step.text = txt.value; };
+      txt.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); $("newStep").focus(); } };
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "remove";
+      rm.textContent = "×";
+      rm.setAttribute("aria-label", "Remove step");
+      rm.onclick = () => { draftSteps.splice(i, 1); renderSteps(); };
+      li.append(cb, txt, rm);
+      ul.append(li);
+    });
+    updateStepCount();
+  }
+
+  function updateStepCount() {
+    const n = draftSteps.length;
+    $("checkCount").textContent = n ? `${draftSteps.filter((s) => s.done).length}/${n}` : "";
+  }
+
+  function addStep() {
+    const text = $("newStep").value.trim();
+    if (!text) return;
+    draftSteps.push({ text, done: false });
+    $("newStep").value = "";
+    renderSteps();
+    $("newStep").focus();
+  }
+
+  function collectSteps() {
+    // Add anything typed but not yet added, and drop empty steps.
+    if ($("newStep").value.trim()) addStep();
+    return draftSteps.map((s) => ({ text: s.text.trim(), done: !!s.done })).filter((s) => s.text);
+  }
+
   async function saveEditor() {
     const base = editing || { id: uuid(), created_at: new Date().toISOString(), done_at: null };
     const status = $("fStatus").value;
@@ -407,6 +488,7 @@
       ...base,
       title: $("fTitle").value.trim(),
       notes: $("fNotes").value.trim(),
+      checklist: collectSteps(),
       assignee: $("fAssignee").value,
       category: $("fCategory").value,
       room: $("fRoom").value,
@@ -495,6 +577,7 @@
       id: uuid(), title: j.title, notes: j.notes || "", status: CFG.COLUMNS[0].id,
       assignee: "", category: j.category || "", room: CFG.ROOMS.includes(j.room) ? j.room : "",
       size: j.size || "", repeat: j.repeat || "", done_at: null, created_at: now,
+      checklist: (j.checklist || []).map((text) => ({ text, done: false })),
       due: j.month ? nextOccurrence(j.month, j.day || 1) : daysFromToday(j.in || 0)
     }));
     if (!newCards.length) return;
@@ -521,6 +604,8 @@
     fillSelect($("fStatus"), CFG.COLUMNS.map((c) => [c.id, c.name]));
 
     $("addBtn").onclick = () => openEditor(null);
+    $("addStepBtn").onclick = addStep;
+    $("newStep").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addStep(); } };
     $("cancelBtn").onclick = () => $("editor").close();
     $("editForm").onsubmit = (e) => { e.preventDefault(); $("editor").close(); saveEditor(); };
     $("deleteBtn").onclick = () => {

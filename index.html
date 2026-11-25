@@ -66,6 +66,14 @@
       <label>Notes
         <textarea id="fNotes" rows="3" placeholder="Optional details"></textarea>
       </label>
+      <div class="checklist-field">
+        <span class="field-label">Checklist <span id="checkCount" class="check-count"></span></span>
+        <ul id="checklist" class="checklist"></ul>
+        <div class="add-step">
+          <input id="newStep" maxlength="120" placeholder="Add a step, e.g. Sand the walls" enterkeyhint="done">
+          <button type="button" id="addStepBtn" aria-label="Add step">Add</button>
+        </div>
+      </div>
       <div class="row">
         <label id="whoField">Who
           <select id="fAssignee"></select>

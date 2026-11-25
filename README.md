@@ -9,6 +9,7 @@ A simple shared board for keeping on top of house jobs. It runs as an app on bot
 - **Three columns:** To do, Doing, Done. Swipe sideways on a phone; on a laptop you see all three.
 - **Each job can have:** a type (Cleaning, Garden, Repairs, Bills, Shopping, Admin), a due date and notes.
 - **Repeating jobs:** set "Repeats" to weekly, monthly, every 3 or 6 months, or yearly. When you finish one, the next one appears in To do with a new due date. Good for bins, bills and filter changes.
+- **Checklists:** break a big job into steps. Tick them off as you go; the card shows a progress bar and the next step.
 - **The → button** moves a job to the next column. Tap the job itself to edit it.
 
 The app's code is in this public repo. **The jobs themselves are stored privately** in a free Supabase database that only the two of us can sign in to.

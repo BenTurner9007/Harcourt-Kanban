@@ -19,6 +19,7 @@ create table if not exists public.cards (
 -- (For databases made before rooms were added.)
 alter table public.cards add column if not exists room text default '';
 alter table public.cards add column if not exists size text default '';
+alter table public.cards add column if not exists checklist jsonb default '[]'::jsonb;
 
 -- Only people listed here can see or change cards.
 create table if not exists public.members (
