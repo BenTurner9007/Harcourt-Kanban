@@ -84,10 +84,15 @@
             <option value="weekly">Weekly</option>
             <option value="fortnightly">Fortnightly</option>
             <option value="monthly">Monthly</option>
+            <option value="quarterly">Every 3 months</option>
+            <option value="6-monthly">Every 6 months</option>
             <option value="yearly">Yearly</option>
           </select>
         </label>
       </div>
+      <label>How long?
+        <select id="fSize"></select>
+      </label>
       <div class="row">
         <label>Room
           <select id="fRoom"></select>
@@ -114,9 +119,24 @@
     </div>
   </dialog>
 
+  <!-- Starter packs -->
+  <dialog id="starters">
+    <form id="startersForm" class="starters" method="dialog">
+      <h2>Add starter jobs</h2>
+      <p class="hint">Ready-made repeating jobs. Untick any you don't want. Jobs already on your board are skipped.</p>
+      <div id="starterList"></div>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" id="closeStartersBtn">Cancel</button>
+        <button type="submit" class="primary" id="addStartersBtn">Add jobs</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Menu -->
   <dialog id="menu">
     <div class="menu">
+      <button id="startersBtn">Add starter jobs</button>
       <button id="clearDoneBtn">Clear finished jobs</button>
       <button id="signOutBtn">Sign out</button>
       <button id="closeMenuBtn">Close</button>
@@ -125,6 +145,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
+  <script src="starter-packs.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

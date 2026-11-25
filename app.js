@@ -21,6 +21,9 @@
       if (i >= 0) cards[i] = card; else cards.push(card);
       localStorage.setItem(this.key, JSON.stringify(cards));
     },
+    async saveMany(list) {
+      for (const c of list) await this.save(c);
+    },
     async remove(ids) {
       const cards = (await this.list()).filter((c) => !ids.includes(c.id));
       localStorage.setItem(this.key, JSON.stringify(cards));
@@ -34,7 +37,6 @@
     const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true }
     });
-    const cols = "id,title,notes,status,assignee,category,room,due,repeat,done_at,created_at";
     return {
       async signedIn() {
         const { data } = await sb.auth.getSession();
@@ -45,12 +47,16 @@
         if (error) throw error;
       },
       async list() {
-        const { data, error } = await sb.from("cards").select(cols);
+        const { data, error } = await sb.from("cards").select("*");
         if (error) throw error;
         return data;
       },
       async save(card) {
         const { error } = await sb.from("cards").upsert(card);
+        if (error) throw error;
+      },
+      async saveMany(list) {
+        const { error } = await sb.from("cards").upsert(list);
         if (error) throw error;
       },
       async remove(ids) {
@@ -72,8 +78,21 @@
 
   let cards = [];
   let filter = localGet("harcourt-filter") || "all";
-  let room = localGet("harcourt-room") || "all";
-  if (room !== "all" && !CFG.ROOMS.includes(room)) room = "all";
+  let sizeFilter = localGet("harcourt-size") || "any";
+  // "week" = This week, "all" = All rooms, otherwise a room name.
+  let room = localGet("harcourt-room") || "week";
+  if (room !== "all" && room !== "week" && !CFG.ROOMS.includes(room)) room = "week";
+
+  const SIZES = [
+    { id: "quick", name: "Quick", long: "Quick (15 min or less)" },
+    { id: "hour",  name: "About an hour", long: "About an hour" },
+    { id: "big",   name: "Big job", long: "Big job (half a day or more)" }
+  ];
+  const REPEATS = {
+    weekly: "weekly", fortnightly: "fortnightly", monthly: "monthly",
+    quarterly: "every 3 months", "6-monthly": "every 6 months", yearly: "yearly"
+  };
+  const WEEK_DAYS = 7;
   let activeCol = CFG.COLUMNS[0].id;
   let editing = null;
 
@@ -98,7 +117,10 @@
 
   // ---------- Helpers ----------
 
-  const today = () => new Date().toISOString().slice(0, 10);
+  const pad = (n) => String(n).padStart(2, "0");
+  const isoDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = () => isoDate(new Date());
+  const daysFromToday = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return isoDate(d); };
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
     : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
         const r = (Math.random() * 16) | 0;
@@ -120,20 +142,42 @@
     if (repeat === "weekly") d.setDate(d.getDate() + 7);
     if (repeat === "fortnightly") d.setDate(d.getDate() + 14);
     if (repeat === "monthly") d.setMonth(d.getMonth() + 1);
+    if (repeat === "quarterly") d.setMonth(d.getMonth() + 3);
+    if (repeat === "6-monthly") d.setMonth(d.getMonth() + 6);
     if (repeat === "yearly") d.setFullYear(d.getFullYear() + 1);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    return isoDate(d);
   }
 
-  function inRoom(card) {
-    return room === "all" || card.room === room;
+  // Next time a given month/day comes round (today counts).
+  function nextOccurrence(month, day) {
+    const now = new Date();
+    let d = new Date(now.getFullYear(), month - 1, day);
+    if (isoDate(d) < today()) d = new Date(now.getFullYear() + 1, month - 1, day);
+    return isoDate(d);
+  }
+
+  // Is this job part of "This week"?
+  function inWeek(card) {
+    if (card.status === "done") {
+      return !!card.done_at && card.done_at >= new Date(Date.now() - WEEK_DAYS * 86400000).toISOString();
+    }
+    if (card.status === "doing") return true;
+    return !!card.due && card.due <= daysFromToday(WEEK_DAYS);
+  }
+
+  function inRoom(card, r = room) {
+    if (r === "week") return inWeek(card);
+    return r === "all" || card.room === r;
   }
 
   function visible(card) {
     if (!inRoom(card)) return false;
+    if (sizeFilter !== "any" && card.size !== sizeFilter) return false;
     if (filter === "all") return true;
     return card.assignee === filter || card.assignee === "Both";
   }
+
+  const roomTitle = (r) => r === "week" ? "This week" : r === "all" ? "All rooms" : r;
 
   function sortCards(list, colId) {
     if (colId === "done") return list.sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
@@ -156,23 +200,34 @@
       b.onclick = () => { filter = val; localSet("harcourt-filter", val); render(); };
       wrap.append(b);
     }
+    wrap.append(Object.assign(document.createElement("span"), { className: "chip-divider" }));
+    for (const [val, label] of [["any", "Any length"], ...SIZES.map((z) => [z.id, z.name])]) {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.textContent = label;
+      b.setAttribute("aria-pressed", String(sizeFilter === val));
+      b.onclick = () => { sizeFilter = val; localSet("harcourt-size", val); render(); };
+      wrap.append(b);
+    }
   }
 
   function renderRooms() {
-    $("roomName").textContent = room === "all" ? "All rooms" : room;
-    const open = (r) => cards.filter((c) => c.status !== "done" && (r === "all" || c.room === r)).length;
+    $("roomName").textContent = roomTitle(room);
+    const open = (r) => cards.filter((c) => c.status !== "done" && inRoom(c, r)).length;
+    const overdue = cards.filter((c) => c.status !== "done" && c.due && c.due < today()).length;
     const grid = $("roomGrid");
     grid.replaceChildren();
-    for (const r of ["all", ...CFG.ROOMS]) {
+    for (const r of ["week", "all", ...CFG.ROOMS]) {
       const b = document.createElement("button");
-      if (r === "all") b.className = "all";
+      if (r === "all" || r === "week") b.className = r;
       b.setAttribute("aria-current", String(r === room));
       const name = document.createElement("span");
-      name.textContent = r === "all" ? "All rooms" : r;
+      name.textContent = roomTitle(r);
       const n = document.createElement("span");
       n.className = "n";
       const count = open(r);
       n.textContent = count ? count + " to do" : "";
+      if (r === "week" && overdue) { n.textContent += ` · ${overdue} overdue`; n.classList.add("alert"); }
       b.append(name, n);
       b.onclick = () => {
         room = r; localSet("harcourt-room", r);
@@ -215,7 +270,8 @@
       if (!list.length) {
         const p = document.createElement("p");
         p.className = "empty";
-        p.textContent = col.id === "done" ? "Nothing finished yet."
+        p.textContent = col.id === "done" ? (room === "week" ? "Nothing finished this week yet." : "Nothing finished yet.")
+          : room === "week" ? "Nothing due this week. Enjoy it."
           : room === "all" ? "Nothing here. Nice." : `Nothing to do in the ${room.toLowerCase()}. Nice.`;
         section.append(p);
       }
@@ -253,7 +309,7 @@
       who.append(dot, " ", c.assignee);
       meta.append(who);
     }
-    if (room === "all" && c.room) meta.append(Object.assign(document.createElement("span"), { textContent: c.room }));
+    if ((room === "all" || room === "week") && c.room) meta.append(Object.assign(document.createElement("span"), { textContent: c.room }));
     if (cat) meta.append(Object.assign(document.createElement("span"), { textContent: cat.name }));
     if (c.due && c.status !== "done") {
       const due = document.createElement("span");
@@ -261,7 +317,9 @@
       if (c.due < today()) due.className = "overdue";
       meta.append(due);
     }
-    if (c.repeat) meta.append(Object.assign(document.createElement("span"), { textContent: "↻ " + c.repeat }));
+    const size = SIZES.find((z) => z.id === c.size);
+    if (size) meta.append(Object.assign(document.createElement("span"), { textContent: "⏱ " + size.name }));
+    if (c.repeat) meta.append(Object.assign(document.createElement("span"), { textContent: "↻ " + (REPEATS[c.repeat] || c.repeat) }));
 
     const move = document.createElement("button");
     move.className = "move";
@@ -330,8 +388,10 @@
     $("fNotes").value = card?.notes || "";
     $("fAssignee").value = card?.assignee || "";
     $("fCategory").value = card?.category || "";
-    $("fRoom").value = card ? (card.room || "") : (room === "all" ? "" : room);
-    $("fDue").value = card?.due || "";
+    $("fRoom").value = card ? (card.room || "") : (CFG.ROOMS.includes(room) ? room : "");
+    $("fSize").value = card ? (card.size || "") : (sizeFilter === "any" ? "" : sizeFilter);
+    // New jobs added from "This week" are due today, so they show up there.
+    $("fDue").value = card ? (card.due || "") : (room === "week" ? today() : "");
     $("fRepeat").value = card?.repeat || "";
     $("fStatus").value = card?.status || activeCol;
     $("deleteBtn").hidden = !card;
@@ -349,6 +409,7 @@
       assignee: $("fAssignee").value,
       category: $("fCategory").value,
       room: $("fRoom").value,
+      size: $("fSize").value,
       due: $("fDue").value || null,
       repeat: $("fRepeat").value
     };
@@ -370,12 +431,91 @@
     catch (e) { setSync("err", e.message); refresh(); }
   }
 
+  // ---------- Starter packs ----------
+
+  const PACKS = window.HARCOURT_STARTER_PACKS || [];
+  const key = (title, rm) => (title + "|" + (rm || "")).toLowerCase();
+
+  function openStarters() {
+    const existing = new Set(cards.filter((c) => c.status !== "done").map((c) => key(c.title, c.room)));
+    const list = $("starterList");
+    list.replaceChildren();
+    PACKS.forEach((pack, pi) => {
+      const det = document.createElement("details");
+      det.className = "pack";
+      det.open = true; // everything ticked is visible, so nothing gets added by surprise
+      const sum = document.createElement("summary");
+      const fresh = pack.jobs.filter((j) => !existing.has(key(j.title, j.room))).length;
+      sum.append(Object.assign(document.createElement("span"), { textContent: pack.name }),
+                 Object.assign(document.createElement("span"), { className: "n", textContent: `${fresh} new` }));
+      det.append(sum);
+      pack.jobs.forEach((j, ji) => {
+        const added = existing.has(key(j.title, j.room));
+        const row = document.createElement("label");
+        row.className = "job" + (added ? " added" : "");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !added;
+        cb.disabled = added;
+        cb.dataset.pack = pi;
+        cb.dataset.job = ji;
+        cb.onchange = updateStarterCount;
+        const text = document.createElement("span");
+        text.textContent = j.title;
+        const small = document.createElement("small");
+        const bits = [j.room || "Whole house", REPEATS[j.repeat] || j.repeat];
+        if (added) bits.push("already on your board");
+        small.textContent = bits.join(" · ");
+        text.append(small);
+        row.append(cb, text);
+        det.append(row);
+      });
+      list.append(det);
+    });
+    updateStarterCount();
+    $("menu").close();
+    $("starters").showModal();
+  }
+
+  function checkedStarters() {
+    return [...$("starterList").querySelectorAll("input:checked:not(:disabled)")]
+      .map((cb) => PACKS[cb.dataset.pack].jobs[cb.dataset.job]);
+  }
+
+  function updateStarterCount() {
+    const n = checkedStarters().length;
+    $("addStartersBtn").textContent = n ? `Add ${n} job${n === 1 ? "" : "s"}` : "Add jobs";
+    $("addStartersBtn").disabled = !n;
+  }
+
+  async function addStarters() {
+    const now = new Date().toISOString();
+    const newCards = checkedStarters().map((j) => ({
+      id: uuid(), title: j.title, notes: j.notes || "", status: CFG.COLUMNS[0].id,
+      assignee: "", category: j.category || "", room: CFG.ROOMS.includes(j.room) ? j.room : "",
+      size: j.size || "", repeat: j.repeat || "", done_at: null, created_at: now,
+      due: j.month ? nextOccurrence(j.month, j.day || 1) : daysFromToday(j.in || 0)
+    }));
+    if (!newCards.length) return;
+    cards.push(...newCards);
+    render();
+    try {
+      await store.saveMany(newCards);
+      setSync("ok", "Saved");
+    } catch (e) {
+      setSync("err", "Not saved: " + e.message);
+      alert("Couldn't add the starter jobs.\n\n" + e.message);
+      refresh();
+    }
+  }
+
   // ---------- Wiring ----------
 
   function wire() {
     fillSelect($("fAssignee"), [["", "Anyone"], ...CFG.PEOPLE.map((p) => [p, p]), ["Both", "Both of us"]]);
     fillSelect($("fCategory"), [["", "None"], ...CFG.CATEGORIES.map((c) => [c.id, c.name])]);
     fillSelect($("fRoom"), [["", "Whole house"], ...CFG.ROOMS.map((r) => [r, r])]);
+    fillSelect($("fSize"), [["", "Not sure"], ...SIZES.map((z) => [z.id, z.long])]);
     fillSelect($("fStatus"), CFG.COLUMNS.map((c) => [c.id, c.name]));
 
     $("addBtn").onclick = () => openEditor(null);
@@ -387,6 +527,9 @@
 
     $("roomBtn").onclick = () => { renderRooms(); $("rooms").showModal(); };
     $("closeRoomsBtn").onclick = () => $("rooms").close();
+    $("startersBtn").onclick = openStarters;
+    $("closeStartersBtn").onclick = () => $("starters").close();
+    $("startersForm").onsubmit = (e) => { e.preventDefault(); $("starters").close(); addStarters(); };
     $("menuBtn").onclick = () => $("menu").showModal();
     $("closeMenuBtn").onclick = () => $("menu").close();
     $("clearDoneBtn").onclick = () => {

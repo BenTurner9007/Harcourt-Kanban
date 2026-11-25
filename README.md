@@ -2,10 +2,13 @@
 
 A simple shared board for keeping on top of house jobs. It runs as an app on both our phones, and changes show up live for both of us.
 
+- **This week:** the board it opens on. Everything due in the next 7 days or overdue, anything in progress, and what you've finished this week, across all rooms.
+- **How long:** tag jobs as Quick, About an hour or Big job, then tap **Quick** at the top when you've only got a few minutes.
+- **Starter jobs:** ⋯ menu → **Add starter jobs** adds ready-made repeating jobs (bins, alarm tests, boiler service, gutters, garden jobs through the year). Edit the list in [`starter-packs.js`](starter-packs.js).
 - **A board for every room:** tap the room name at the top to switch between Kitchen, Bathroom, Shed and so on. Each room shows how many jobs are left. **All rooms** shows everything at once.
 - **Three columns:** To do, Doing, Done. Swipe sideways on a phone; on a laptop you see all three.
 - **Each job can have:** who's doing it, a type (Cleaning, Garden, Repairs, Bills, Shopping, Admin), a due date and notes.
-- **Repeating jobs:** set "Repeats" to weekly, monthly and so on. When you finish one, the next one appears in To do with a new due date. Good for bins, bills and filter changes.
+- **Repeating jobs:** set "Repeats" to weekly, monthly, every 3 or 6 months, or yearly. When you finish one, the next one appears in To do with a new due date. Good for bins, bills and filter changes.
 - **The → button** moves a job to the next column. Tap the job itself to edit it.
 - **Filter chips** at the top show everyone's jobs or just one person's.
 

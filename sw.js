@@ -1,8 +1,8 @@
 // Service worker: lets the app open quickly and work as a home-screen app.
 // Network first, so you always get the latest version when online.
-const CACHE = "harcourt-v4";
+const CACHE = "harcourt-v5";
 const SHELL = [
-  "./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest",
+  "./", "index.html", "style.css", "app.js", "config.js", "starter-packs.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
 ];
 
