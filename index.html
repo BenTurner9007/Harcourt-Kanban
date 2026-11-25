@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap">
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
   <header class="topbar">
@@ -77,6 +77,19 @@
           <button type="button" id="addStepBtn" aria-label="Add step">Add</button>
         </div>
       </div>
+      <div class="photos-field">
+        <span class="field-label">Photos <span id="photoCount" class="check-count"></span></span>
+        <div id="photoGrid" class="photo-grid"></div>
+        <div class="photo-actions">
+          <label class="photo-btn">📷 Take photo
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+          </label>
+          <label class="photo-btn">🖼️ Choose photos
+            <input type="file" id="libraryInput" accept="image/*" multiple hidden>
+          </label>
+        </div>
+        <p id="photoStatus" class="hint" role="status"></p>
+      </div>
       <div class="row">
         <label id="whoField">Who
           <select id="fAssignee"></select>
@@ -121,6 +134,16 @@
     </form>
   </dialog>
 
+  <!-- Photo viewer -->
+  <dialog id="viewer" class="viewer">
+    <img id="viewerImg" alt="Job photo">
+    <div class="actions">
+      <button type="button" id="removePhotoBtn" class="danger">Remove photo</button>
+      <span class="spacer"></span>
+      <button type="button" id="closeViewerBtn" class="primary">Close</button>
+    </div>
+  </dialog>
+
   <!-- Room picker -->
   <dialog id="rooms">
     <div class="rooms">
@@ -156,8 +179,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
-  <script src="starter-packs.js?v=9"></script>
+  <script src="starter-packs.js?v=10"></script>
   <!-- Bump ?v= when these files change, so browsers never mix old and new copies. -->
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

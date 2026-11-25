@@ -20,6 +20,27 @@ window.HARCOURT_CONFIG = {
     "Under the stairs", "Shed", "Side of the house"
   ],
 
+  // Card colour for each room. Jobs for the whole house use WHOLE_HOUSE_COLOUR.
+  // Pick dark-ish colours so the white writing on them stays readable.
+  ROOM_COLOURS: {
+    "Kitchen":           "#dc2626",
+    "Dining Room":       "#c2410c",
+    "Hall":              "#a16207",
+    "Living Room":       "#db2777",
+    "Porch":             "#4d7c0f",
+    "Landing":           "#0e7490",
+    "Bathroom":          "#0369a1",
+    "Study":             "#4338ca",
+    "Studio":            "#6d28d9",
+    "Bedroom":           "#a21caf",
+    "Front Garden":      "#15803d",
+    "Back Garden":       "#0f766e",
+    "Under the stairs":  "#57534e",
+    "Shed":              "#92400e",
+    "Side of the house": "#64748b"
+  },
+  WHOLE_HOUSE_COLOUR: "#1e293b",
+
   COLUMNS: [
     { id: "todo",  name: "To do" },
     { id: "doing", name: "Doing" },

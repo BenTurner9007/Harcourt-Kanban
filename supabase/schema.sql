@@ -20,6 +20,7 @@ create table if not exists public.cards (
 alter table public.cards add column if not exists room text default '';
 alter table public.cards add column if not exists size text default '';
 alter table public.cards add column if not exists checklist jsonb default '[]'::jsonb;
+alter table public.cards add column if not exists photos jsonb default '[]'::jsonb;
 
 -- Only people listed here can see or change cards.
 create table if not exists public.members (
@@ -59,3 +60,23 @@ insert into public.members (email) values
   ('you@example.com'),
   ('partner@example.com')
 on conflict do nothing;
+
+-- ---------- Photos ----------
+-- A private storage bucket. Only members can see, add or remove photos.
+insert into storage.buckets (id, name, public)
+values ('photos', 'photos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "members read photos"   on storage.objects;
+drop policy if exists "members add photos"    on storage.objects;
+drop policy if exists "members change photos" on storage.objects;
+drop policy if exists "members remove photos" on storage.objects;
+
+create policy "members read photos" on storage.objects
+  for select to authenticated using (bucket_id = 'photos' and public.is_member());
+create policy "members add photos" on storage.objects
+  for insert to authenticated with check (bucket_id = 'photos' and public.is_member());
+create policy "members change photos" on storage.objects
+  for update to authenticated using (bucket_id = 'photos' and public.is_member());
+create policy "members remove photos" on storage.objects
+  for delete to authenticated using (bucket_id = 'photos' and public.is_member());

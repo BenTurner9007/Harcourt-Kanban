@@ -29,7 +29,19 @@
       localStorage.setItem(this.key, JSON.stringify(cards));
     },
     subscribe() {},
-    async signOut() {}
+    async signOut() {},
+    // Demo photos are kept small and stored inside the card itself.
+    photoMax: 800,
+    async uploadPhoto(cardId, blob) {
+      return await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = () => rej(r.error);
+        r.readAsDataURL(blob);
+      });
+    },
+    async photoUrls(paths) { return Object.fromEntries(paths.map((p) => [p, p])); },
+    async removePhotos() {}
   };
 
   // Shared store: cards live in Supabase, changes stream in live.
@@ -68,7 +80,25 @@
           .on("postgres_changes", { event: "*", schema: "public", table: "cards" }, onChange)
           .subscribe((status) => setSync(status === "SUBSCRIBED" ? "ok" : "", status));
       },
-      async signOut() { await sb.auth.signOut(); }
+      async signOut() { await sb.auth.signOut(); },
+      // Photos live in a private Supabase Storage bucket called "photos".
+      photoMax: 1600,
+      async uploadPhoto(cardId, blob) {
+        const path = `${cardId}/${uuid()}.jpg`;
+        const { error } = await sb.storage.from("photos").upload(path, blob, { contentType: "image/jpeg" });
+        if (error) throw error;
+        return path;
+      },
+      async photoUrls(paths) {
+        const { data, error } = await sb.storage.from("photos").createSignedUrls(paths, 3600);
+        if (error) throw error;
+        const out = {};
+        for (const d of data) if (d.signedUrl) out[d.path] = d.signedUrl;
+        return out;
+      },
+      async removePhotos(paths) {
+        if (paths.length) await sb.storage.from("photos").remove(paths);
+      }
     };
   }
 
@@ -128,6 +158,7 @@
         return (c === "x" ? r : (r & 3) | 8).toString(16);
       }));
   const category = (id) => CFG.CATEGORIES.find((c) => c.id === id);
+  const roomColour = (r) => (CFG.ROOM_COLOURS || {})[r] || CFG.WHOLE_HOUSE_COLOUR || "#1e293b";
 
   function friendlyDate(iso) {
     const d = new Date(iso + "T00:00:00");
@@ -216,6 +247,7 @@
 
   function renderRooms() {
     $("roomName").textContent = roomTitle(room);
+    $("roomBtn").style.setProperty("--room", CFG.ROOMS.includes(room) ? roomColour(room) : "");
     const here = cards.filter((c) => c.status !== "done" && inRoom(c));
     const lateHere = here.filter((c) => c.due && c.due < today()).length;
     const todayHere = here.filter((c) => c.due === today()).length;
@@ -232,6 +264,7 @@
     for (const r of ["week", "all", ...CFG.ROOMS]) {
       const b = document.createElement("button");
       if (r === "all" || r === "week") b.className = r;
+      else { b.classList.add("swatch"); b.style.setProperty("--room", roomColour(r)); }
       b.setAttribute("aria-current", String(r === room));
       const name = document.createElement("span");
       name.textContent = roomTitle(r);
@@ -291,6 +324,8 @@
       board.append(section);
     });
 
+    loadPhotos(board);
+
     // Keep the current column in view after re-render.
     const idx = CFG.COLUMNS.findIndex((c) => c.id === activeCol);
     board.scrollLeft = idx * board.clientWidth;
@@ -305,16 +340,13 @@
     const el = document.createElement("article");
     el.className = "card" + (c.status === "done" ? " done" : "");
     const cat = category(c.category);
-    if (cat) el.style.setProperty("--cat", cat.colour);
-    else el.classList.add("no-cat");
+    el.style.setProperty("--cat", roomColour(c.room));
 
-    // Coloured strip: job type, plus the room when looking across rooms.
+    // Coloured strip in the room's colour: room name, plus the job type.
     const strip = document.createElement("div");
     strip.className = "strip";
-    strip.append(cat ? cat.name : "Job");
-    if ((room === "all" || room === "week") && c.room) {
-      strip.append(Object.assign(document.createElement("span"), { className: "room", textContent: c.room }));
-    }
+    strip.append(c.room || "Whole house");
+    if (cat) strip.append(Object.assign(document.createElement("span"), { className: "room", textContent: cat.name }));
 
     const title = document.createElement("div");
     title.className = "title";
@@ -386,6 +418,24 @@
       prog.append(bar, line);
       el.append(prog);
     }
+    const photos = Array.isArray(c.photos) ? c.photos : [];
+    if (photos.length) {
+      const row = document.createElement("div");
+      row.className = "thumbs";
+      photos.slice(0, 3).forEach((path, i) => {
+        const box = document.createElement("span");
+        const img = document.createElement("img");
+        img.alt = "";
+        img.loading = "lazy";
+        img.dataset.path = path;
+        box.append(img);
+        if (i === 2 && photos.length > 3) {
+          box.append(Object.assign(document.createElement("span"), { className: "more", textContent: "+" + (photos.length - 3) }));
+        }
+        row.append(box);
+      });
+      el.append(row);
+    }
     if (c.notes) {
       const n = document.createElement("div");
       n.className = "notes";
@@ -422,6 +472,7 @@
         await persist({
           ...card, id: uuid(), status: CFG.COLUMNS[0].id, done_at: null,
           checklist: (card.checklist || []).map((s) => ({ ...s, done: false })),
+          photos: [],
           due: nextDue(card.due, card.repeat), created_at: new Date().toISOString()
         });
         updated.repeat = "";
@@ -442,6 +493,9 @@
     $("fTitle").value = card?.title || "";
     $("fNotes").value = card?.notes || "";
     draftSteps = (card?.checklist || []).map((s) => ({ ...s }));
+    edit = { id: card?.id || uuid(), photos: [...(card?.photos || [])], uploaded: [], pending: [], uploading: 0, saved: false };
+    setPhotoStatus("");
+    renderPhotos();
     $("newStep").value = "";
     renderSteps();
     $("fAssignee").value = card?.assignee || "";
@@ -511,7 +565,8 @@
   }
 
   async function saveEditor() {
-    const base = editing || { id: uuid(), created_at: new Date().toISOString(), done_at: null };
+    const sess = edit;
+    const base = editing || { id: sess.id, created_at: new Date().toISOString(), done_at: null };
     const status = $("fStatus").value;
     const card = {
       ...base,
@@ -526,6 +581,12 @@
       repeat: $("fRepeat").value
     };
     if (!card.title) return;
+    sess.saved = true;
+    // Wait for any photos still uploading, then remove ones taken off this job.
+    if (sess.pending.length) await Promise.allSettled(sess.pending);
+    card.photos = [...sess.photos];
+    const dropped = (editing?.photos || []).filter((p) => !sess.photos.includes(p));
+    if (dropped.length) store.removePhotos(dropped).catch(() => {});
     if (editing && editing.status !== status) {
       card.status = editing.status;
       await moveTo(card, status);
@@ -537,10 +598,136 @@
   }
 
   async function removeCards(ids) {
+    const photoPaths = cards.filter((c) => ids.includes(c.id)).flatMap((c) => c.photos || []);
+    if (photoPaths.length) store.removePhotos(photoPaths).catch(() => {});
     cards = cards.filter((c) => !ids.includes(c.id));
     render();
     try { await store.remove(ids); setSync("ok", "Saved"); }
     catch (e) { setSync("err", e.message); refresh(); }
+  }
+
+  // ---------- Photos ----------
+
+  // The job being edited: its id (new jobs get one up front), its photos,
+  // photos uploaded during this edit (removed again if cancelled), uploads in flight.
+  let edit = { id: null, photos: [], uploaded: [], pending: [], uploading: 0, saved: false };
+  let viewing = null;
+  const urlCache = new Map(); // path -> { url, until }
+
+  async function photoUrls(paths) {
+    const now = Date.now();
+    const missing = paths.filter((p) => !(urlCache.get(p)?.until > now));
+    if (missing.length) {
+      const got = await store.photoUrls(missing);
+      for (const [p, url] of Object.entries(got)) urlCache.set(p, { url, until: now + 50 * 60 * 1000 });
+    }
+    return Object.fromEntries(paths.map((p) => [p, urlCache.get(p)?.url]));
+  }
+
+  // Fill in any <img data-path> under root that has no picture yet.
+  async function loadPhotos(root) {
+    const imgs = [...root.querySelectorAll("img[data-path]:not([src])")];
+    if (!imgs.length) return;
+    try {
+      const urls = await photoUrls([...new Set(imgs.map((i) => i.dataset.path))]);
+      imgs.forEach((i) => { if (urls[i.dataset.path]) i.src = urls[i.dataset.path]; });
+    } catch { /* thumbnails are a nice-to-have; ignore */ }
+  }
+
+  // Shrink a photo before upload: saves data and storage, and fixes rotation.
+  async function shrink(file, max) {
+    let src;
+    try {
+      src = await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      src = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = () => rej(new Error("That file doesn't look like a photo."));
+        i.src = URL.createObjectURL(file);
+      });
+    }
+    const scale = Math.min(1, max / Math.max(src.width, src.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(src.width * scale);
+    canvas.height = Math.round(src.height * scale);
+    canvas.getContext("2d").drawImage(src, 0, 0, canvas.width, canvas.height);
+    return await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.8));
+  }
+
+  function setPhotoStatus(text, isError) {
+    const el = $("photoStatus");
+    el.textContent = text;
+    el.classList.toggle("error", !!isError);
+  }
+
+  function renderPhotos() {
+    const grid = $("photoGrid");
+    grid.replaceChildren();
+    edit.photos.forEach((path) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "thumb";
+      b.setAttribute("aria-label", "View photo");
+      const img = document.createElement("img");
+      img.alt = "";
+      img.dataset.path = path;
+      b.append(img);
+      b.onclick = () => openViewer(path);
+      grid.append(b);
+    });
+    for (let i = 0; i < edit.uploading; i++) {
+      grid.append(Object.assign(document.createElement("span"), { className: "thumb loading" }));
+    }
+    const n = edit.photos.length;
+    $("photoCount").textContent = n ? String(n) : "";
+    loadPhotos(grid);
+  }
+
+  async function addPhotos(files) {
+    const sess = edit;
+    for (const file of files) {
+      sess.uploading++;
+      renderPhotos();
+      const job = (async () => {
+        try {
+          const blob = await shrink(file, store.photoMax);
+          const path = await store.uploadPhoto(sess.id, blob);
+          sess.photos.push(path);
+          sess.uploaded.push(path);
+          if (sess === edit) setPhotoStatus("");
+          // Editor was cancelled while this was uploading: tidy it away.
+          if (sess.cancelled) store.removePhotos([path]).catch(() => {});
+        } catch (e) {
+          if (sess === edit) setPhotoStatus("Couldn't add that photo: " + (e.message || e), true);
+        } finally {
+          sess.uploading = Math.max(0, sess.uploading - 1);
+          if (sess === edit) renderPhotos();
+        }
+      })();
+      sess.pending.push(job);
+    }
+  }
+
+  async function openViewer(path) {
+    viewing = path;
+    const img = $("viewerImg");
+    img.removeAttribute("src");
+    $("viewer").showModal();
+    try { img.src = (await photoUrls([path]))[path]; } catch { /* ignore */ }
+  }
+
+  function removeViewedPhoto() {
+    if (!viewing) return;
+    edit.photos = edit.photos.filter((p) => p !== viewing);
+    if (edit.uploaded.includes(viewing)) {
+      // Uploaded during this edit and never saved: delete it straight away.
+      store.removePhotos([viewing]).catch(() => {});
+      edit.uploaded = edit.uploaded.filter((p) => p !== viewing);
+    }
+    viewing = null;
+    $("viewer").close();
+    renderPhotos();
   }
 
   // ---------- Starter packs ----------
@@ -634,9 +821,20 @@
 
     $("addBtn").onclick = () => openEditor(null);
     $("addStepBtn").onclick = addStep;
+    for (const id of ["cameraInput", "libraryInput"]) {
+      $(id).onchange = (e) => { addPhotos([...e.target.files]); e.target.value = ""; };
+    }
+    $("closeViewerBtn").onclick = () => $("viewer").close();
+    $("removePhotoBtn").onclick = removeViewedPhoto;
+    // Cancelled edit: tidy away photos uploaded during it.
+    $("editor").addEventListener("close", () => {
+      if (edit.saved) return;
+      edit.cancelled = true;
+      if (edit.uploaded.length) store.removePhotos(edit.uploaded).catch(() => {});
+    });
     $("newStep").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addStep(); } };
     $("cancelBtn").onclick = () => $("editor").close();
-    $("editForm").onsubmit = (e) => { e.preventDefault(); $("editor").close(); saveEditor(); };
+    $("editForm").onsubmit = (e) => { e.preventDefault(); saveEditor(); $("editor").close(); };
     $("deleteBtn").onclick = () => {
       if (editing && confirm(`Delete "${editing.title}"?`)) { $("editor").close(); removeCards([editing.id]); }
     };
