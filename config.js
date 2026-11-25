@@ -27,11 +27,11 @@ window.HARCOURT_CONFIG = {
   ],
 
   CATEGORIES: [
-    { id: "cleaning", name: "Cleaning",  colour: "#3b82c4" },
-    { id: "garden",   name: "Garden",    colour: "#3f8f4a" },
-    { id: "repairs",  name: "Repairs",   colour: "#c0662b" },
-    { id: "bills",    name: "Bills",     colour: "#8a5cc2" },
-    { id: "shopping", name: "Shopping",  colour: "#c43f6b" },
-    { id: "admin",    name: "Admin",     colour: "#6b7280" }
+    { id: "cleaning", name: "Cleaning",  colour: "#1d6fe0" },
+    { id: "garden",   name: "Garden",    colour: "#13823b" },
+    { id: "repairs",  name: "Repairs",   colour: "#c2410c" },
+    { id: "bills",    name: "Bills",     colour: "#7c3aed" },
+    { id: "shopping", name: "Shopping",  colour: "#be185d" },
+    { id: "admin",    name: "Admin",     colour: "#475569" }
   ]
 };

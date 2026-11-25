@@ -216,6 +216,15 @@
 
   function renderRooms() {
     $("roomName").textContent = roomTitle(room);
+    const here = cards.filter((c) => c.status !== "done" && inRoom(c));
+    const lateHere = here.filter((c) => c.due && c.due < today()).length;
+    const todayHere = here.filter((c) => c.due === today()).length;
+    const stats = $("roomStats");
+    stats.replaceChildren();
+    const pill = (text, cls) => Object.assign(document.createElement("span"), { className: "pill " + (cls || ""), textContent: text });
+    if (lateHere) stats.append(pill(`${lateHere} late`, "late"));
+    if (todayHere) stats.append(pill(`${todayHere} today`, "today"));
+    stats.append(pill(`${here.length} to do`));
     const open = (r) => cards.filter((c) => c.status !== "done" && inRoom(c, r)).length;
     const overdue = cards.filter((c) => c.status !== "done" && c.due && c.due < today()).length;
     const grid = $("roomGrid");
@@ -268,7 +277,7 @@
       section.className = "column";
       section.dataset.col = col.id;
       const h = document.createElement("h2");
-      h.textContent = `${col.name} (${list.length})`;
+      h.append(col.name, Object.assign(document.createElement("span"), { className: "count", textContent: list.length }));
       section.append(h);
       if (!list.length) {
         const p = document.createElement("p");
@@ -297,6 +306,15 @@
     el.className = "card" + (c.status === "done" ? " done" : "");
     const cat = category(c.category);
     if (cat) el.style.setProperty("--cat", cat.colour);
+    else el.classList.add("no-cat");
+
+    // Coloured strip: job type, plus the room when looking across rooms.
+    const strip = document.createElement("div");
+    strip.className = "strip";
+    strip.append(cat ? cat.name : "Job");
+    if ((room === "all" || room === "week") && c.room) {
+      strip.append(Object.assign(document.createElement("span"), { className: "room", textContent: c.room }));
+    }
 
     const title = document.createElement("div");
     title.className = "title";
@@ -312,12 +330,19 @@
       who.append(dot, " ", c.assignee);
       meta.append(who);
     }
-    if ((room === "all" || room === "week") && c.room) meta.append(Object.assign(document.createElement("span"), { textContent: c.room }));
-    if (cat) meta.append(Object.assign(document.createElement("span"), { textContent: cat.name }));
     if (c.due && c.status !== "done") {
       const due = document.createElement("span");
-      due.textContent = "Due " + friendlyDate(c.due);
-      if (c.due < today()) due.className = "overdue";
+      const t = today();
+      if (c.due < t) {
+        const days = Math.round((new Date(t + "T00:00:00") - new Date(c.due + "T00:00:00")) / 86400000);
+        due.className = "pill late";
+        due.textContent = `Late · ${days} day${days === 1 ? "" : "s"}`;
+      } else if (c.due === t) {
+        due.className = "pill today";
+        due.textContent = "Today";
+      } else {
+        due.textContent = "Due " + friendlyDate(c.due);
+      }
       meta.append(due);
     }
     const size = SIZES.find((z) => z.id === c.size);
@@ -327,14 +352,18 @@
     const move = document.createElement("button");
     move.className = "move";
     const last = colIndex === CFG.COLUMNS.length - 1;
-    move.textContent = last ? "↩" : "→";
+    const finishing = CFG.COLUMNS[colIndex + 1]?.id === "done";
+    move.textContent = last ? "↩" : finishing ? "✓" : "→";
+    if (last) move.classList.add("back");
+    else if (finishing) move.classList.add("finish");
     move.setAttribute("aria-label", last ? "Move back to To do" : "Move to " + CFG.COLUMNS[colIndex + 1].name);
     move.onclick = (e) => {
       e.stopPropagation();
       moveTo(c, last ? CFG.COLUMNS[0].id : CFG.COLUMNS[colIndex + 1].id);
     };
 
-    el.append(title, move, meta);
+    el.append(strip, title, move, meta);
+    if (!meta.childElementCount) meta.remove();
     const steps = Array.isArray(c.checklist) ? c.checklist : [];
     if (steps.length) {
       const doneSteps = steps.filter((s) => s.done).length;

@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Harcourt Kanban</title>
   <meta name="description" content="Our shared board for house jobs">
-  <meta name="theme-color" content="#2f6b4f">
+  <meta name="theme-color" content="#14162b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Harcourt">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
   <header class="topbar">
@@ -45,9 +48,9 @@
   <!-- Board -->
   <main id="app" hidden>
     <button id="roomBtn" class="room-btn" aria-haspopup="dialog">
-      <span class="room-label">Board</span>
-      <span id="roomName">All rooms</span>
-      <span aria-hidden="true">▾</span>
+      <span id="roomName">This week</span>
+      <span class="caret" aria-hidden="true">▾</span>
+      <span id="roomStats" class="room-stats"></span>
     </button>
     <div class="filters" role="group" aria-label="Filter by person" id="filters"></div>
     <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -153,8 +156,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
-  <script src="starter-packs.js?v=8"></script>
+  <script src="starter-packs.js?v=9"></script>
   <!-- Bump ?v= when these files change, so browsers never mix old and new copies. -->
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
