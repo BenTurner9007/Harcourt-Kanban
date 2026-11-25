@@ -7,10 +7,9 @@ A simple shared board for keeping on top of house jobs. It runs as an app on bot
 - **Starter jobs:** ⋯ menu → **Add starter jobs** adds ready-made repeating jobs (bins, alarm tests, boiler service, gutters, garden jobs through the year). Edit the list in [`starter-packs.js`](starter-packs.js).
 - **A board for every room:** tap the room name at the top to switch between Kitchen, Bathroom, Shed and so on. Each room shows how many jobs are left. **All rooms** shows everything at once.
 - **Three columns:** To do, Doing, Done. Swipe sideways on a phone; on a laptop you see all three.
-- **Each job can have:** who's doing it, a type (Cleaning, Garden, Repairs, Bills, Shopping, Admin), a due date and notes.
+- **Each job can have:** a type (Cleaning, Garden, Repairs, Bills, Shopping, Admin), a due date and notes.
 - **Repeating jobs:** set "Repeats" to weekly, monthly, every 3 or 6 months, or yearly. When you finish one, the next one appears in To do with a new due date. Good for bins, bills and filter changes.
 - **The → button** moves a job to the next column. Tap the job itself to edit it.
-- **Filter chips** at the top show everyone's jobs or just one person's.
 
 The app's code is in this public repo. **The jobs themselves are stored privately** in a free Supabase database that only the two of us can sign in to.
 
@@ -40,7 +39,7 @@ It opens in **demo mode** at first, which saves cards on that phone only. Steps 
 ### 4. Connect the app to the database
 
 1. In Supabase go to **Project Settings → API** (or **Data API**). Copy the **Project URL** and the **anon public** key.
-2. In this repo, edit [`config.js`](config.js): paste them into `SUPABASE_URL` and `SUPABASE_ANON_KEY`. While you're there, change `PEOPLE` to your names.
+2. In this repo, edit [`config.js`](config.js): paste them into `SUPABASE_URL` and `SUPABASE_ANON_KEY`. If you want to assign jobs to each other, put your names in `PEOPLE` (it's empty, so assigning is switched off).
 3. Commit. The app updates in a minute or two.
 
 > The anon key is meant to be public. It can't read anything unless you're signed in **and** your email is in the members list.

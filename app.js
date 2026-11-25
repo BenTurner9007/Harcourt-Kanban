@@ -77,7 +77,8 @@
   // ---------- State ----------
 
   let cards = [];
-  let filter = localGet("harcourt-filter") || "all";
+  const ASSIGNING = CFG.PEOPLE.length > 0;
+  let filter = ASSIGNING ? (localGet("harcourt-filter") || "all") : "all";
   let sizeFilter = localGet("harcourt-size") || "any";
   // "week" = This week, "all" = All rooms, otherwise a room name.
   let room = localGet("harcourt-room") || "week";
@@ -191,7 +192,7 @@
   function renderFilters() {
     const wrap = $("filters");
     wrap.replaceChildren();
-    const opts = [["all", "Everyone"], ...CFG.PEOPLE.map((p) => [p, p])];
+    const opts = ASSIGNING ? [["all", "Everyone"], ...CFG.PEOPLE.map((p) => [p, p])] : [];
     for (const [val, label] of opts) {
       const b = document.createElement("button");
       b.className = "chip";
@@ -200,7 +201,7 @@
       b.onclick = () => { filter = val; localSet("harcourt-filter", val); render(); };
       wrap.append(b);
     }
-    wrap.append(Object.assign(document.createElement("span"), { className: "chip-divider" }));
+    if (ASSIGNING) wrap.append(Object.assign(document.createElement("span"), { className: "chip-divider" }));
     for (const [val, label] of [["any", "Any length"], ...SIZES.map((z) => [z.id, z.name])]) {
       const b = document.createElement("button");
       b.className = "chip";
@@ -301,7 +302,7 @@
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    if (c.assignee) {
+    if (ASSIGNING && c.assignee) {
       const who = document.createElement("span");
       const dot = document.createElement("span");
       dot.className = "who";
@@ -512,6 +513,7 @@
   // ---------- Wiring ----------
 
   function wire() {
+    $("whoField").hidden = !ASSIGNING;
     fillSelect($("fAssignee"), [["", "Anyone"], ...CFG.PEOPLE.map((p) => [p, p]), ["Both", "Both of us"]]);
     fillSelect($("fCategory"), [["", "None"], ...CFG.CATEGORIES.map((c) => [c.id, c.name])]);
     fillSelect($("fRoom"), [["", "Whole house"], ...CFG.ROOMS.map((r) => [r, r])]);

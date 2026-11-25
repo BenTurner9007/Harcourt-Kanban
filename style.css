@@ -28,6 +28,8 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.row:has(> [hidden]) { grid-template-columns: 1fr; }
 html, body { margin: 0; }
 body {
   background: var(--bg);

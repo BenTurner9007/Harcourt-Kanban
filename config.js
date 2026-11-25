@@ -9,8 +9,9 @@ window.HARCOURT_CONFIG = {
   SUPABASE_URL: "https://zidhwrlcnzclaqkekyrl.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_6ikEp27M9AhW_vOCfdtaPA_zOv3tMKb",
 
-  // The people who appear in the "Who" list.
-  PEOPLE: ["Ben", "Partner"],
+  // Names for assigning jobs to people, e.g. ["Ben", "Sam"].
+  // Leave empty to switch assigning off (no "Who" box or person filter).
+  PEOPLE: [],
 
   // Each room is its own board. Add, remove or reorder as you like.
   ROOMS: [
