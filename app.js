@@ -664,6 +664,15 @@
     else { $("login").hidden = false; setSync("", "Signed out"); }
   }
 
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) {
+    // When a new version of the app takes over, reload once so the page
+    // isn't left running a mix of old and new files.
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (hadController && !reloaded) { reloaded = true; location.reload(); }
+    });
+    navigator.serviceWorker.register("sw.js").then((reg) => reg.update()).catch(() => {});
+  }
   boot();
 })();

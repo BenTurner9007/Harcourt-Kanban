@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
   <header class="topbar">
@@ -153,7 +153,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
-  <script src="starter-packs.js"></script>
-  <script src="app.js"></script>
+  <script src="starter-packs.js?v=8"></script>
+  <!-- Bump ?v= when these files change, so browsers never mix old and new copies. -->
+  <script src="app.js?v=8"></script>
 </body>
 </html>

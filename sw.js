@@ -1,6 +1,6 @@
 // Service worker: lets the app open quickly and work as a home-screen app.
 // Network first, so you always get the latest version when online.
-const CACHE = "harcourt-v7";
+const CACHE = "harcourt-v8";
 const SHELL = [
   "./", "index.html", "style.css", "app.js", "config.js", "starter-packs.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
@@ -30,6 +30,6 @@ self.addEventListener("fetch", (e) => {
         caches.open(CACHE).then((c) => c.put(e.request, copy));
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
 });
